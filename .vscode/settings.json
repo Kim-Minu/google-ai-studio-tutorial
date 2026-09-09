@@ -1,0 +1,8 @@
+{
+  "python.defaultInterpreterPath": "/opt/miniconda3/envs/myenv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "python.experiments.optOutFrom": [
+    "python.copilot.enable-large-language-model-completions"
+  ]
+}
