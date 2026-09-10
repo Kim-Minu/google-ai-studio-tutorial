@@ -1,26 +1,22 @@
-// Main frontend application script
+// YouTube Audio & Transcript Application Script (Watch Page Layout)
 
 document.addEventListener('DOMContentLoaded', () => {
     // State
     let currentData = null;
-    let customApiKey = localStorage.getItem('GEMINI_CUSTOM_API_KEY') || '';
+    let currentSegments = [];
 
-    // DOM Elements
-    const apiKeySection = document.getElementById('apiKeySection');
-    const apiKeyToggleBtn = document.getElementById('apiKeyToggleBtn');
-    const customApiKeyInput = document.getElementById('customApiKey');
-    const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
-    const apiKeyBadge = document.getElementById('apiKeyBadge');
-
-    const optionsToggleBtn = document.getElementById('optionsToggleBtn');
-    const advancedOptions = document.getElementById('advancedOptions');
-    const optionsChevron = document.getElementById('optionsChevron');
-
+    // DOM Elements - Header & Forms
     const transcribeForm = document.getElementById('transcribeForm');
     const videoUrlInput = document.getElementById('videoUrl');
-    const modelSelect = document.getElementById('modelSelect');
-    const languageHint = document.getElementById('languageHint');
     const submitBtn = document.getElementById('submitBtn');
+
+    const historyToggleBtn = document.getElementById('historyToggleBtn');
+    const mobileHistoryToggleBtn = document.getElementById('mobileHistoryToggleBtn');
+    const historyCountBadge = document.getElementById('historyCountBadge');
+    const mobileHistoryCountBadge = document.getElementById('mobileHistoryCountBadge');
+    const historyDrawer = document.getElementById('historyDrawer');
+    const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+    const drawerHistoryList = document.getElementById('drawerHistoryList');
 
     const progressSection = document.getElementById('progressSection');
     const progressStatusTitle = document.getElementById('progressStatusTitle');
@@ -33,299 +29,312 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMessage = document.getElementById('errorMessage');
     const closeErrorBtn = document.getElementById('closeErrorBtn');
 
-    const resultSection = document.getElementById('resultSection');
-    const resThumbnail = document.getElementById('resThumbnail');
+    // DOM Elements - Home & History
+    const welcomeHero = document.getElementById('welcomeHero');
+    const homeHistorySection = document.getElementById('homeHistorySection');
+    const homeHistoryGrid = document.getElementById('homeHistoryGrid');
+    const homeHistoryCount = document.getElementById('homeHistoryCount');
+
+    // DOM Elements - Watch Layout
+    const watchLayout = document.getElementById('watchLayout');
+    const ytPlayerIframe = document.getElementById('ytPlayerIframe');
+    const audioPlayer = document.getElementById('audioPlayer');
     const resTitle = document.getElementById('resTitle');
     const resUploader = document.getElementById('resUploader');
     const resDuration = document.getElementById('resDuration');
     const resLanguage = document.getElementById('resLanguage');
+    const channelInitial = document.getElementById('channelInitial');
+
     const downloadAudioBtn = document.getElementById('downloadAudioBtn');
-    const audioPlayer = document.getElementById('audioPlayer');
-
-    const tabTranscriptBtn = document.getElementById('tabTranscriptBtn');
-    const tabSummaryBtn = document.getElementById('tabSummaryBtn');
-    const tabPlainBtn = document.getElementById('tabPlainBtn');
-    const tabContentTranscript = document.getElementById('tabContentTranscript');
-    const tabContentSummary = document.getElementById('tabContentSummary');
-    const tabContentPlain = document.getElementById('tabContentPlain');
-
-    const segmentsList = document.getElementById('segmentsList');
-    const resSummary = document.getElementById('resSummary');
-    const resKeyPoints = document.getElementById('resKeyPoints');
-    const resPlainText = document.getElementById('resPlainText');
-
-    const copyAllBtn = document.getElementById('copyAllBtn');
-    const exportTxtBtn = document.getElementById('exportTxtBtn');
     const exportSrtBtn = document.getElementById('exportSrtBtn');
     const exportVttBtn = document.getElementById('exportVttBtn');
+    const exportTxtBtn = document.getElementById('exportTxtBtn');
+    const copyAllBtn = document.getElementById('copyAllBtn');
 
-    // History DOM Elements
-    const historySection = document.getElementById('historySection');
-    const historyToggleBtn = document.getElementById('historyToggleBtn');
-    const historyCountBadge = document.getElementById('historyCountBadge');
-    const historyListContainer = document.getElementById('historyListContainer');
-    const clearAllHistoryBtn = document.getElementById('clearAllHistoryBtn');
-    const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+    const descriptionBox = document.getElementById('descriptionBox');
+    const descToggleText = document.getElementById('descToggleText');
+    const resSummary = document.getElementById('resSummary');
+    const expandedDescContent = document.getElementById('expandedDescContent');
+    const resKeyPoints = document.getElementById('resKeyPoints');
 
-    // Init custom API key
-    if (customApiKey) {
-        customApiKeyInput.value = customApiKey;
-        apiKeyBadge.className = 'w-2 h-2 rounded-full bg-emerald-400';
-    }
+    const segmentsList = document.getElementById('segmentsList');
+    const segmentCountBadge = document.getElementById('segmentCountBadge');
+    const transcriptSearchInput = document.getElementById('transcriptSearchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const sidebarHistoryList = document.getElementById('sidebarHistoryList');
+    const sidebarClearHistoryBtn = document.getElementById('sidebarClearHistoryBtn');
 
-    // Toggle API Key Panel
-    apiKeyToggleBtn.addEventListener('click', () => {
-        apiKeySection.classList.toggle('hidden');
-    });
-
-    // Save Custom API Key
-    saveApiKeyBtn.addEventListener('click', () => {
-        const val = customApiKeyInput.value.trim();
-        if (val) {
-            localStorage.setItem('GEMINI_CUSTOM_API_KEY', val);
-            customApiKey = val;
-            apiKeyBadge.className = 'w-2 h-2 rounded-full bg-emerald-400';
-            showToast('Gemini API 키가 저장되었습니다.');
-            apiKeySection.classList.add('hidden');
-        } else {
-            localStorage.removeItem('GEMINI_CUSTOM_API_KEY');
-            customApiKey = '';
-            showToast('API 키가 삭제되었습니다.');
-        }
-    });
-
-    // Toggle Advanced Options
-    optionsToggleBtn.addEventListener('click', () => {
-        const isHidden = advancedOptions.classList.toggle('hidden');
-        optionsChevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
-    });
-
-    // Close Error Alert
-    closeErrorBtn.addEventListener('click', () => {
-        errorAlert.classList.add('hidden');
-    });
-
-    // Step UI update helper
-    function updateSteps(step) {
-        // Reset
-        [step1, step2, step3].forEach((el) => {
-            el.className = 'p-2 rounded-lg bg-slate-800/40 border border-slate-700 text-slate-500 flex flex-col items-center gap-1';
+    if (closeErrorBtn) {
+        closeErrorBtn.addEventListener('click', () => {
+            if (errorAlert) errorAlert.classList.add('hidden');
         });
-
-        if (step >= 1) {
-            step1.className = 'p-2 rounded-lg bg-indigo-950/80 border border-indigo-500 text-indigo-300 flex flex-col items-center gap-1 font-semibold';
-            progressStatusTitle.textContent = '1단계: 유튜브 오디오 다운로드 중...';
-            progressStatusDesc.textContent = 'yt-dlp를 통해 고음질 오디오 스트림을 추출하여 임시 저장 중입니다.';
-        }
-        if (step >= 2) {
-            step1.className = 'p-2 rounded-lg bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 flex flex-col items-center gap-1';
-            step2.className = 'p-2 rounded-lg bg-indigo-950/80 border border-indigo-500 text-indigo-300 flex flex-col items-center gap-1 font-semibold';
-            progressStatusTitle.textContent = '2단계: Gemini AI 음성 전사 중...';
-            progressStatusDesc.textContent = 'Google AI Studio Gemini 모델이 오디오를 인식하고 타임스탬프를 생성 중입니다.';
-        }
-        if (step >= 3) {
-            step2.className = 'p-2 rounded-lg bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 flex flex-col items-center gap-1';
-            step3.className = 'p-2 rounded-lg bg-indigo-950/80 border border-indigo-500 text-indigo-300 flex flex-col items-center gap-1 font-semibold';
-            progressStatusTitle.textContent = '3단계: 자막 및 핵심 요약 정격 생성 중...';
-            progressStatusDesc.textContent = '화자 분리, SRT/VTT 자막 변환 및 핵심 3줄 요약을 완료하고 있습니다.';
-        }
     }
 
-    // Submit Form
-    transcribeForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const url = videoUrlInput.value.trim();
-        if (!url) return;
+    // ==================== Form Submit / Transcribe ====================
+    if (transcribeForm) {
+        transcribeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = videoUrlInput ? videoUrlInput.value.trim() : '';
+            if (!url) return;
 
-        // UI Reset
-        errorAlert.classList.add('hidden');
-        resultSection.classList.add('hidden');
-        progressSection.classList.remove('hidden');
-        submitBtn.disabled = true;
-        submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
-
-        updateSteps(1);
-
-        // Simulation timer for step 2 & 3 UI feedback
-        const stepTimer1 = setTimeout(() => updateSteps(2), 3500);
-        const stepTimer2 = setTimeout(() => updateSteps(3), 8500);
-
-        try {
-            const payload = {
-                url: url,
-                api_key: customApiKey || null,
-                model_name: modelSelect.value,
-                language_hint: languageHint.value.trim() || null,
-            };
-
-            const res = await fetch('/api/transcribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            clearTimeout(stepTimer1);
-            clearTimeout(stepTimer2);
-
-            const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data.detail || '요청 처리 중 오류가 발생했습니다.');
+            if (errorAlert) errorAlert.classList.add('hidden');
+            if (progressSection) progressSection.classList.remove('hidden');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
             }
 
-            currentData = data;
-            renderResults(data);
-            await loadHistory();
-            showToast('트랜스크립트 추출 완료 & 히스토리에 저장되었습니다.');
+            updateSteps(1);
+            const stepTimer1 = setTimeout(() => updateSteps(2), 3500);
+            const stepTimer2 = setTimeout(() => updateSteps(3), 8500);
 
-        } catch (err) {
-            clearTimeout(stepTimer1);
-            clearTimeout(stepTimer2);
-            errorMessage.textContent = err.message || '서버와의 통신에 실패했습니다.';
-            errorAlert.classList.remove('hidden');
-        } finally {
-            progressSection.classList.add('hidden');
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        }
-    });
+            try {
+                const payload = {
+                    url: url,
+                    model_name: 'gemini-3.7-flash',
+                };
 
-    // Render result data to UI
-    function renderResults(data) {
-        const { video, transcript } = data;
-
-        // 1. Video Card
-        resThumbnail.src = video.thumbnail || '';
-        resTitle.textContent = video.title || '영상 제목';
-        resUploader.textContent = video.uploader || '채널';
-        resDuration.textContent = video.duration_string || '00:00';
-        resLanguage.textContent = transcript.detected_language || '언어 자동감지';
-
-        audioPlayer.src = video.audio_url;
-        downloadAudioBtn.href = video.audio_url;
-        downloadAudioBtn.download = video.audio_filename;
-
-        // 2. Render Segments Timeline
-        segmentsList.innerHTML = '';
-        const segments = transcript.segments || [];
-
-        if (segments.length === 0) {
-            segmentsList.innerHTML = `<div class="p-4 text-center text-slate-400 text-sm">트랜스크립트 세그먼트가 없습니다.</div>`;
-        } else {
-            segments.forEach((seg, idx) => {
-                const segEl = document.createElement('div');
-                segEl.className = 'segment-item p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-start gap-3 cursor-pointer group';
-                segEl.dataset.seconds = seg.seconds || 0;
-                segEl.id = `segment-${idx}`;
-
-                const speakerBadge = seg.speaker ? `<span class="px-2 py-0.5 rounded bg-indigo-900/60 text-indigo-300 text-[11px] font-semibold">${escapeHtml(seg.speaker)}</span>` : '';
-
-                segEl.innerHTML = `
-                    <button type="button" class="jump-btn px-2.5 py-1 rounded-md bg-slate-800 group-hover:bg-indigo-600 text-indigo-300 group-hover:text-white font-mono text-xs font-semibold flex items-center gap-1 shrink-0 transition" title="이 위치로 재생">
-                        <i data-lucide="play" class="w-3 h-3"></i>
-                        <span>${seg.timestamp || seg.start}</span>
-                    </button>
-                    <div class="flex-1 space-y-1">
-                        ${speakerBadge}
-                        <p class="text-sm text-slate-200 leading-relaxed">${escapeHtml(seg.text)}</p>
-                    </div>
-                `;
-
-                // Click jump
-                segEl.addEventListener('click', () => {
-                    if (seg.seconds !== undefined) {
-                        audioPlayer.currentTime = parseFloat(seg.seconds);
-                        audioPlayer.play();
-                    }
+                const res = await fetch('/api/transcribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
                 });
 
-                segmentsList.appendChild(segEl);
-            });
-        }
+                clearTimeout(stepTimer1);
+                clearTimeout(stepTimer2);
 
-        // 3. Render Summary & Key Points
-        resSummary.textContent = transcript.summary || '요약 정보가 없습니다.';
-        resKeyPoints.innerHTML = '';
-        (transcript.key_points || []).forEach((kp) => {
-            const li = document.createElement('li');
-            li.className = 'flex items-start gap-2';
-            li.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5"></i> <span>${escapeHtml(kp)}</span>`;
-            resKeyPoints.appendChild(li);
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || '요청 처리 중 오류가 발생했습니다.');
+                }
+
+                currentData = data;
+                renderResults(data);
+                await loadHistory();
+                showToast('트랜스크립트 추출 완료 & 히스토리에 저장되었습니다.');
+
+            } catch (err) {
+                clearTimeout(stepTimer1);
+                clearTimeout(stepTimer2);
+                if (errorMessage) errorMessage.textContent = err.message || '서버와의 통신에 실패했습니다.';
+                if (errorAlert) errorAlert.classList.remove('hidden');
+            } finally {
+                if (progressSection) progressSection.classList.add('hidden');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
         });
-
-        // 4. Render Plain Text
-        resPlainText.value = transcript.full_text || '';
-
-        // Show result section
-        resultSection.classList.remove('hidden');
-        lucide.createIcons();
-
-        // Scroll to results
-        resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // Audio time update sync with segment highlight
-    audioPlayer.addEventListener('timeupdate', () => {
-        if (!currentData || !currentData.transcript || !currentData.transcript.segments) return;
-        const currentSec = audioPlayer.currentTime;
-        const segments = currentData.transcript.segments;
+    const progressBarFill = document.getElementById('progressBarFill');
 
-        let activeIdx = -1;
-        for (let i = 0; i < segments.length; i++) {
-            const seg = segments[i];
-            const nextSeg = segments[i + 1];
-            const start = seg.seconds || 0;
-            const end = nextSeg ? (nextSeg.seconds || start + 5) : start + 10;
-            if (currentSec >= start && currentSec < end) {
-                activeIdx = i;
-                break;
-            }
-        }
+    function updateSteps(stepNumber) {
+        const steps = [
+            { el: step1, title: '오디오 추출 중...', desc: '고음질 스트림을 분석하고 다운로드합니다.', width: '30%' },
+            { el: step2, title: 'Gemini AI 음성 인식 중...', desc: '화자 분리 및 타임스탬프 자막을 정밀 추출합니다.', width: '65%' },
+            { el: step3, title: '자막 및 3줄 요약 생성 중...', desc: 'SRT/VTT 자막과 핵심 요약을 정리하고 있습니다.', width: '90%' },
+        ];
 
-        document.querySelectorAll('.segment-item').forEach((el, idx) => {
-            if (idx === activeIdx) {
-                el.classList.add('active-segment');
+        [step1, step2, step3].forEach((s, idx) => {
+            if (!s) return;
+            if (idx + 1 < stepNumber) {
+                s.className = 'p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500 text-emerald-300 flex flex-col items-center gap-1.5 font-semibold transition shadow-sm';
+            } else if (idx + 1 === stepNumber) {
+                s.className = 'p-2.5 rounded-xl bg-indigo-950/90 border border-indigo-400 text-indigo-200 flex flex-col items-center gap-1.5 font-semibold transition shadow-lg ring-2 ring-indigo-500/50 scale-105';
             } else {
-                el.classList.remove('active-segment');
+                s.className = 'p-2.5 rounded-xl bg-[#272727] border border-[#383838] text-slate-500 flex flex-col items-center gap-1.5 transition opacity-60';
             }
         });
-    });
 
-    // Tab Switch Handlers
-    function switchTab(activeTab) {
-        tabTranscriptBtn.classList.remove('active', 'bg-indigo-600', 'text-white');
-        tabSummaryBtn.classList.remove('active', 'bg-indigo-600', 'text-white');
-        tabPlainBtn.classList.remove('active', 'bg-indigo-600', 'text-white');
+        if (steps[stepNumber - 1]) {
+            if (progressStatusTitle) progressStatusTitle.textContent = steps[stepNumber - 1].title;
+            if (progressStatusDesc) progressStatusDesc.textContent = steps[stepNumber - 1].desc;
+            if (progressBarFill) progressBarFill.style.width = steps[stepNumber - 1].width;
+        }
 
-        tabTranscriptBtn.classList.add('text-slate-400');
-        tabSummaryBtn.classList.add('text-slate-400');
-        tabPlainBtn.classList.add('text-slate-400');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
 
-        tabContentTranscript.classList.add('hidden');
-        tabContentSummary.classList.add('hidden');
-        tabContentPlain.classList.add('hidden');
+    // ==================== Render Results ====================
+    function renderResults(data) {
+        if (!data || !data.video || !data.transcript) return;
+        const { video, transcript } = data;
+        currentSegments = transcript.segments || [];
 
-        if (activeTab === 'transcript') {
-            tabTranscriptBtn.classList.add('active');
-            tabTranscriptBtn.classList.remove('text-slate-400');
-            tabContentTranscript.classList.remove('hidden');
-        } else if (activeTab === 'summary') {
-            tabSummaryBtn.classList.add('active');
-            tabSummaryBtn.classList.remove('text-slate-400');
-            tabContentSummary.classList.remove('hidden');
-        } else if (activeTab === 'plain') {
-            tabPlainBtn.classList.add('active');
-            tabPlainBtn.classList.remove('text-slate-400');
-            tabContentPlain.classList.remove('hidden');
+        // 1. Switch Views: Hide Welcome, Show Watch Layout
+        if (welcomeHero) welcomeHero.classList.add('hidden');
+        if (watchLayout) watchLayout.classList.remove('hidden');
+
+        // 2. Video & Audio Player
+        if (video.id && ytPlayerIframe) {
+            ytPlayerIframe.src = `https://www.youtube.com/embed/${video.id}?enablejsapi=1`;
+        }
+        if (video.audio_url && audioPlayer) {
+            audioPlayer.src = video.audio_url;
+            if (downloadAudioBtn) {
+                downloadAudioBtn.href = video.audio_url;
+                downloadAudioBtn.download = video.audio_filename || `${video.title || 'audio'}.mp3`;
+            }
+        }
+
+        // 3. Metadata
+        if (resTitle) resTitle.textContent = video.title || '제목 없음';
+        if (resUploader) resUploader.textContent = video.uploader || '알 수 없음';
+        if (resDuration) resDuration.textContent = video.duration_string || '00:00';
+        if (resLanguage) resLanguage.textContent = transcript.detected_language || '한국어';
+        if (channelInitial) channelInitial.textContent = (video.uploader || 'Y').charAt(0).toUpperCase();
+
+        // 4. Description / AI Summary
+        if (resSummary) resSummary.textContent = transcript.summary || '요약이 생성되지 않았습니다.';
+        if (resKeyPoints) {
+            resKeyPoints.innerHTML = '';
+            if (transcript.key_points && transcript.key_points.length > 0) {
+                transcript.key_points.forEach((kp) => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-start gap-2';
+                    li.innerHTML = `<span class="text-indigo-400 font-bold">•</span><span>${escapeHtml(kp)}</span>`;
+                    resKeyPoints.appendChild(li);
+                });
+            }
+        }
+
+        // 5. Render Transcript Segments
+        renderSegments(currentSegments);
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // ==================== Transcript Segments Render & Filter ====================
+    function renderSegments(segments) {
+        if (!segmentsList) return;
+        segmentsList.innerHTML = '';
+        if (segmentCountBadge) segmentCountBadge.textContent = `${segments.length}개 항목`;
+
+        if (segments.length === 0) {
+            segmentsList.innerHTML = `
+                <div class="text-center py-12 text-slate-500 text-xs">
+                    <p>검색 결과가 없거나 자막이 비어있습니다.</p>
+                </div>
+            `;
+            return;
+        }
+
+        segments.forEach((seg, index) => {
+            const div = document.createElement('div');
+            div.className = 'transcript-segment flex items-start gap-3 text-xs leading-relaxed';
+            div.dataset.seconds = seg.seconds || 0;
+            div.dataset.index = index;
+
+            div.innerHTML = `
+                <span class="segment-timestamp shrink-0">${seg.timestamp || '00:00'}</span>
+                <div class="flex-1">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                        <span class="font-bold text-slate-400 text-[11px]">${escapeHtml(seg.speaker || '화자')}</span>
+                    </div>
+                    <span class="segment-text text-slate-200">${escapeHtml(seg.text || '')}</span>
+                </div>
+            `;
+
+            // Click timestamp: seek audio & YouTube iframe
+            div.addEventListener('click', () => {
+                seekToTime(seg.seconds || 0);
+            });
+
+            segmentsList.appendChild(div);
+        });
+    }
+
+    // Seek player
+    function seekToTime(seconds) {
+        if (audioPlayer && audioPlayer.src) {
+            audioPlayer.currentTime = seconds;
+            audioPlayer.play().catch(() => {});
+        }
+
+        if (ytPlayerIframe && ytPlayerIframe.contentWindow) {
+            ytPlayerIframe.contentWindow.postMessage(
+                JSON.stringify({
+                    event: 'command',
+                    func: 'seekTo',
+                    args: [seconds, true],
+                }),
+                '*'
+            );
         }
     }
 
-    tabTranscriptBtn.addEventListener('click', () => switchTab('transcript'));
-    tabSummaryBtn.addEventListener('click', () => switchTab('summary'));
-    tabPlainBtn.addEventListener('click', () => switchTab('plain'));
+    // Audio timeupdate -> highlight matching segment & auto-scroll
+    if (audioPlayer) {
+        audioPlayer.addEventListener('timeupdate', () => {
+            const currentTime = audioPlayer.currentTime;
+            const segmentElements = document.querySelectorAll('.transcript-segment');
 
-    // Export Handlers
-    function downloadFile(filename, content, type = 'text/plain;charset=utf-8') {
-        const blob = new Blob([content], { type: type });
+            let activeIndex = -1;
+            for (let i = 0; i < currentSegments.length; i++) {
+                const seg = currentSegments[i];
+                const nextSeg = currentSegments[i + 1];
+                const start = seg.seconds || 0;
+                const end = nextSeg ? nextSeg.seconds : start + 10;
+
+                if (currentTime >= start && currentTime < end) {
+                    activeIndex = i;
+                    break;
+                }
+            }
+
+            segmentElements.forEach((el, idx) => {
+                if (idx === activeIndex) {
+                    if (!el.classList.contains('active-segment')) {
+                        el.classList.add('active-segment');
+                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                } else {
+                    el.classList.remove('active-segment');
+                }
+            });
+        });
+    }
+
+    // Transcript Search Filter
+    if (transcriptSearchInput) {
+        transcriptSearchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim().toLowerCase();
+            if (query) {
+                if (clearSearchBtn) clearSearchBtn.classList.remove('hidden');
+                const filtered = currentSegments.filter(s => (s.text || '').toLowerCase().includes(query) || (s.speaker || '').toLowerCase().includes(query));
+                renderSegments(filtered);
+            } else {
+                if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
+                renderSegments(currentSegments);
+            }
+        });
+    }
+
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', () => {
+            if (transcriptSearchInput) transcriptSearchInput.value = '';
+            clearSearchBtn.classList.add('hidden');
+            renderSegments(currentSegments);
+        });
+    }
+
+    // Description Expand / Collapse Toggle
+    if (descriptionBox) {
+        descriptionBox.addEventListener('click', () => {
+            if (expandedDescContent) {
+                const isHidden = expandedDescContent.classList.toggle('hidden');
+                if (descToggleText) descToggleText.textContent = isHidden ? '더보기' : '간략히';
+            }
+        });
+    }
+
+    // ==================== Export & Copy Handlers ====================
+    function downloadFile(filename, text, mimeType = 'text/plain;charset=utf-8') {
+        const blob = new Blob([text], { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -337,62 +346,82 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getBaseFilename() {
-        if (!currentData || !currentData.video) return 'transcript';
-        const title = currentData.video.title || 'transcript';
+        const title = (currentData && currentData.video && currentData.video.title) ? currentData.video.title : 'transcript';
         return title.replace(/[/\\?%*:|"<>]/g, '_').substring(0, 40);
     }
 
-    exportTxtBtn.addEventListener('click', () => {
-        if (!currentData) return;
-        const text = currentData.transcript.full_text || '';
-        downloadFile(`${getBaseFilename()}.txt`, text);
-    });
+    if (exportTxtBtn) {
+        exportTxtBtn.addEventListener('click', () => {
+            if (!currentData || !currentData.transcript) return;
+            downloadFile(`${getBaseFilename()}.txt`, currentData.transcript.full_text || '');
+        });
+    }
 
-    exportSrtBtn.addEventListener('click', () => {
-        if (!currentData) return;
-        const srt = currentData.transcript.srt || '';
-        downloadFile(`${getBaseFilename()}.srt`, srt);
-    });
+    if (exportSrtBtn) {
+        exportSrtBtn.addEventListener('click', () => {
+            if (!currentData || !currentData.transcript) return;
+            downloadFile(`${getBaseFilename()}.srt`, currentData.transcript.srt || '');
+        });
+    }
 
-    exportVttBtn.addEventListener('click', () => {
-        if (!currentData) return;
-        const vtt = currentData.transcript.vtt || '';
-        downloadFile(`${getBaseFilename()}.vtt`, vtt, 'text/vtt;charset=utf-8');
-    });
+    if (exportVttBtn) {
+        exportVttBtn.addEventListener('click', () => {
+            if (!currentData || !currentData.transcript) return;
+            downloadFile(`${getBaseFilename()}.vtt`, currentData.transcript.vtt || '', 'text/vtt;charset=utf-8');
+        });
+    }
 
-    copyAllBtn.addEventListener('click', async () => {
-        if (!currentData) return;
-        const text = currentData.transcript.full_text || '';
-        try {
-            await navigator.clipboard.writeText(text);
-            showToast('전체 트랜스크립트가 클립보드에 복사되었습니다.');
-        } catch (e) {
-            showToast('복사에 실패했습니다.');
-        }
-    });
+    if (copyAllBtn) {
+        copyAllBtn.addEventListener('click', async () => {
+            if (!currentData || !currentData.transcript) return;
+            try {
+                await navigator.clipboard.writeText(currentData.transcript.full_text || '');
+                showToast('전체 트랜스크립트가 클립보드에 복사되었습니다.');
+            } catch (e) {
+                showToast('복사에 실패했습니다.');
+            }
+        });
+    }
 
     // ==================== History Management ====================
-    historyToggleBtn.addEventListener('click', () => {
-        const isHidden = historySection.classList.toggle('hidden');
-        if (!isHidden) {
-            loadHistory();
-        }
-    });
+    if (historyToggleBtn && historyDrawer) {
+        historyToggleBtn.addEventListener('click', () => {
+            historyDrawer.classList.remove('hidden');
+        });
+    }
 
-    closeHistoryBtn.addEventListener('click', () => {
-        historySection.classList.add('hidden');
-    });
+    if (mobileHistoryToggleBtn && historyDrawer) {
+        mobileHistoryToggleBtn.addEventListener('click', () => {
+            historyDrawer.classList.remove('hidden');
+        });
+    }
 
-    clearAllHistoryBtn.addEventListener('click', async () => {
-        if (!confirm('정말 모든 히스토리를 삭제하시겠습니까?')) return;
-        try {
-            await fetch('/api/history', { method: 'DELETE' });
-            showToast('히스토리가 전체 삭제되었습니다.');
-            loadHistory();
-        } catch (e) {
-            showToast('히스토리 삭제 중 오류가 발생했습니다.');
-        }
-    });
+    if (closeDrawerBtn && historyDrawer) {
+        closeDrawerBtn.addEventListener('click', () => {
+            historyDrawer.classList.add('hidden');
+        });
+    }
+
+    if (historyDrawer) {
+        historyDrawer.addEventListener('click', (e) => {
+            if (e.target === historyDrawer) {
+                historyDrawer.classList.add('hidden');
+            }
+        });
+    }
+
+    if (sidebarClearHistoryBtn) {
+        sidebarClearHistoryBtn.addEventListener('click', async () => {
+            if (!confirm('정말 모든 최근 기록을 삭제하시겠습니까?')) return;
+            try {
+                await fetch('/api/history', { method: 'DELETE' });
+                showToast('히스토리가 전체 삭제되었습니다.');
+                loadHistory();
+            } catch (e) {
+                showToast('히스토리 삭제 실패');
+            }
+        });
+    }
 
     async function loadHistory() {
         try {
@@ -400,84 +429,181 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             const history = data.history || [];
 
-            historyCountBadge.textContent = history.length;
+            if (historyCountBadge) historyCountBadge.textContent = history.length;
+            if (mobileHistoryCountBadge) mobileHistoryCountBadge.textContent = history.length;
+            if (homeHistoryCount) homeHistoryCount.textContent = `${history.length}개 저장됨`;
 
-            if (history.length === 0) {
-                historyListContainer.innerHTML = `
-                    <div class="text-center py-8 text-slate-500 text-xs">
-                        <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 text-slate-600"></i>
-                        <p>저장된 히스토리가 없습니다.</p>
-                    </div>
-                `;
-                lucide.createIcons();
-                return;
-            }
-
-            historyListContainer.innerHTML = '';
-            history.forEach((item) => {
-                const video = item.video || {};
-                const transcript = item.transcript || {};
-                const card = document.createElement('div');
-                card.className = 'p-3 rounded-xl bg-slate-950/80 hover:bg-slate-800/60 border border-slate-800 hover:border-indigo-500/40 transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group';
-
-                card.innerHTML = `
-                    <div class="flex items-center gap-3 flex-1 min-w-0 cursor-pointer item-click-target">
-                        <img src="${video.thumbnail || ''}" class="w-16 h-10 object-cover rounded-lg border border-slate-700 shrink-0" alt="thumb">
-                        <div class="min-w-0 flex-1">
-                            <h4 class="text-xs font-semibold text-slate-100 group-hover:text-indigo-300 truncate">${escapeHtml(video.title || '제목 없음')}</h4>
-                            <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                                <span>${escapeHtml(video.uploader || '')}</span>
-                                <span>•</span>
-                                <span>${video.duration_string || ''}</span>
-                                <span>•</span>
-                                <span class="text-slate-500">${item.created_at || ''}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-                        <button type="button" class="load-history-btn px-2.5 py-1.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs font-medium flex items-center gap-1 transition">
-                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                            <span>열기</span>
-                        </button>
-                        <button type="button" class="delete-history-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 transition" title="삭제">
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                        </button>
-                    </div>
-                `;
-
-                // Item Click / Open
-                const openHistory = () => {
-                    currentData = item;
-                    renderResults(item);
-                    historySection.classList.add('hidden');
-                    showToast('히스토리에서 항목을 불러왔습니다.');
-                };
-
-                card.querySelector('.item-click-target').addEventListener('click', openHistory);
-                card.querySelector('.load-history-btn').addEventListener('click', openHistory);
-
-                // Delete Item
-                card.querySelector('.delete-history-btn').addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const videoId = video.id;
-                    if (!videoId) return;
-                    try {
-                        await fetch(`/api/history/${videoId}`, { method: 'DELETE' });
-                        showToast('항목이 삭제되었습니다.');
-                        loadHistory();
-                    } catch (err) {
-                        showToast('삭제 실패');
-                    }
-                });
-
-                historyListContainer.appendChild(card);
-            });
-
-            lucide.createIcons();
+            renderHomeHistory(history);
+            renderSidebarHistory(history);
+            renderDrawerHistory(history);
 
         } catch (err) {
-            historyListContainer.innerHTML = `<div class="text-center py-4 text-rose-400 text-xs">히스토리를 불러오지 못했습니다.</div>`;
+            console.error('History load failed:', err);
         }
+    }
+
+    // 1. Render Home Welcome Grid History
+    function renderHomeHistory(history) {
+        if (!homeHistoryGrid) return;
+        homeHistoryGrid.innerHTML = '';
+
+        if (history.length === 0) {
+            if (homeHistorySection) homeHistorySection.classList.add('hidden');
+            return;
+        }
+
+        if (homeHistorySection) homeHistorySection.classList.remove('hidden');
+
+        history.forEach((item) => {
+            const video = item.video || {};
+            const transcript = item.transcript || {};
+            const card = document.createElement('div');
+            card.className = 'rounded-2xl bg-[#1e1e1e] hover:bg-[#262626] border border-[#2e2e2e] hover:border-indigo-500/40 p-3.5 transition flex flex-col justify-between space-y-3 cursor-pointer group shadow-lg';
+
+            card.innerHTML = `
+                <div class="space-y-2.5">
+                    <div class="relative aspect-video rounded-xl overflow-hidden bg-black border border-[#333]">
+                        <img src="${video.thumbnail || ''}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="thumb">
+                        <span class="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded bg-black/80 text-[11px] font-mono font-bold text-white">
+                            ${video.duration_string || '00:00'}
+                        </span>
+                    </div>
+                    <div>
+                        <h4 class="text-xs sm:text-sm font-bold text-white group-hover:text-indigo-300 line-clamp-2 leading-snug">
+                            ${escapeHtml(video.title || '제목 없음')}
+                        </h4>
+                        <p class="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
+                            <span>${escapeHtml(video.uploader || '')}</span>
+                            <span>•</span>
+                            <span class="text-slate-500">${item.created_at || ''}</span>
+                        </p>
+                    </div>
+                    <p class="text-xs text-slate-300 line-clamp-2 bg-[#171717] p-2 rounded-lg border border-[#282828] leading-relaxed">
+                        ${escapeHtml(transcript.summary || '요약 없음')}
+                    </p>
+                </div>
+                <div class="pt-2 border-t border-[#2a2a2a] flex items-center justify-between">
+                    <span class="text-[11px] text-indigo-400 font-semibold flex items-center gap-1">
+                        <i data-lucide="play-circle" class="w-3.5 h-3.5"></i>
+                        <span>지금 재생하기</span>
+                    </span>
+                    <button class="home-del-btn text-slate-500 hover:text-rose-400 p-1 transition" title="삭제">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            `;
+
+            card.addEventListener('click', () => {
+                currentData = item;
+                renderResults(item);
+                showToast('히스토리에서 영상을 불러왔습니다.');
+            });
+
+            const delBtn = card.querySelector('.home-del-btn');
+            if (delBtn) {
+                delBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (video.id) {
+                        await fetch(`/api/history/${video.id}`, { method: 'DELETE' });
+                        showToast('히스토리에서 삭제되었습니다.');
+                        loadHistory();
+                    }
+                });
+            }
+
+            homeHistoryGrid.appendChild(card);
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // 2. Render YouTube 'Up Next' style sidebar history
+    function renderSidebarHistory(history) {
+        if (!sidebarHistoryList) return;
+        sidebarHistoryList.innerHTML = '';
+        if (history.length === 0) {
+            sidebarHistoryList.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">최근 변환 기록이 없습니다.</p>`;
+            return;
+        }
+
+        history.forEach((item) => {
+            const video = item.video || {};
+            const card = document.createElement('div');
+            card.className = 'p-2 rounded-xl hover:bg-[#272727] transition flex items-center gap-2.5 cursor-pointer group';
+
+            card.innerHTML = `
+                <img src="${video.thumbnail || ''}" class="w-20 h-12 object-cover rounded-lg border border-[#333333] shrink-0" alt="thumb">
+                <div class="min-w-0 flex-1">
+                    <h5 class="text-xs font-semibold text-slate-200 group-hover:text-[#3ea6ff] line-clamp-2 leading-tight">
+                        ${escapeHtml(video.title || '제목 없음')}
+                    </h5>
+                    <div class="text-[11px] text-slate-400 mt-0.5 truncate">${escapeHtml(video.uploader || '')}</div>
+                </div>
+            `;
+
+            card.addEventListener('click', () => {
+                currentData = item;
+                renderResults(item);
+                showToast('기록에서 영상을 불러왔습니다.');
+            });
+
+            sidebarHistoryList.appendChild(card);
+        });
+    }
+
+    // 3. Render Drawer history
+    function renderDrawerHistory(history) {
+        if (!drawerHistoryList) return;
+        drawerHistoryList.innerHTML = '';
+        if (history.length === 0) {
+            drawerHistoryList.innerHTML = `<p class="text-xs text-slate-500 text-center py-8">저장된 기록이 없습니다.</p>`;
+            return;
+        }
+
+        history.forEach((item) => {
+            const video = item.video || {};
+            const card = document.createElement('div');
+            card.className = 'p-3 rounded-xl bg-[#272727] hover:bg-[#303030] border border-[#383838] transition flex items-center justify-between gap-3 group';
+
+            card.innerHTML = `
+                <div class="flex items-center gap-3 flex-1 min-w-0 cursor-pointer item-open-target">
+                    <img src="${video.thumbnail || ''}" class="w-16 h-10 object-cover rounded-lg shrink-0 border border-[#444]" alt="thumb">
+                    <div class="min-w-0 flex-1">
+                        <h4 class="text-xs font-semibold text-white group-hover:text-[#3ea6ff] truncate">${escapeHtml(video.title || '')}</h4>
+                        <p class="text-[11px] text-slate-400">${escapeHtml(video.uploader || '')} • ${video.duration_string || ''}</p>
+                    </div>
+                </div>
+                <button class="delete-history-btn p-1.5 text-slate-400 hover:text-rose-400 transition" title="삭제">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            `;
+
+            const openTarget = card.querySelector('.item-open-target');
+            if (openTarget) {
+                openTarget.addEventListener('click', () => {
+                    currentData = item;
+                    renderResults(item);
+                    if (historyDrawer) historyDrawer.classList.add('hidden');
+                    showToast('기록에서 영상을 불러왔습니다.');
+                });
+            }
+
+            const delBtn = card.querySelector('.delete-history-btn');
+            if (delBtn) {
+                delBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (video.id) {
+                        await fetch(`/api/history/${video.id}`, { method: 'DELETE' });
+                        showToast('항목이 삭제되었습니다.');
+                        loadHistory();
+                    }
+                });
+            }
+
+            drawerHistoryList.appendChild(card);
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     // Initial history load
