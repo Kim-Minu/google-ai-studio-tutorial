@@ -10,6 +10,23 @@ def sanitize_filename(name: str) -> str:
     return re.sub(r'[\\/*?:"<>|]', "_", name).strip()
 
 
+def extract_youtube_id(url: str) -> Optional[str]:
+    """유튜브 URL에서 비디오 ID를 빠르게 추출"""
+    if not url:
+        return None
+    patterns = [
+        r"(?:v=|\/)([0-9A-Za-z_-]{11}).*",
+        r"youtu\.be\/([0-9A-Za-z_-]{11})",
+        r"shorts\/([0-9A-Za-z_-]{11})",
+        r"embed\/([0-9A-Za-z_-]{11})",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
+
+
 def format_duration(seconds: Optional[int]) -> str:
     """초 단위를 MM:SS 또는 HH:MM:SS 형식으로 변환"""
     if not seconds:

@@ -194,3 +194,64 @@ def transcribe_audio_with_gemini(
                 client.files.delete(name=uploaded_file.name)
             except Exception:
                 pass
+
+
+def ask_transcript_qa(
+    question: str,
+    transcript_text: str,
+    video_title: str = "",
+    uploader: str = "",
+    history: Optional[List[Dict[str, str]]] = None,
+    api_key: Optional[str] = None,
+    model_name: str = "gemini-3.7-flash",
+) -> str:
+    """
+    영상 트랜스크립트 맥락을 기반으로 사용자의 질문에 답변합니다.
+    """
+    client = get_gemini_client(api_key=api_key)
+
+    system_instruction = (
+        "당신은 유튜브 영상의 내용을 깊이 이해하고 사용자의 질문에 친절하고 명확하게 답변하는 AI 어시스턴트입니다.\n"
+        "제공된 영상 스크립트와 메타데이터를 기반으로 사실에 입각하여 성실하게 답변하세요.\n"
+        "규칙:\n"
+        "1. 한국어로 자연스럽고 가독성 좋게 답변하세요 (필요시 글머리 기호 사용).\n"
+        "2. 답변에서 스크립트의 특정 시점을 인용하거나 언급할 때는 반드시 `[MM:SS]` 형식(예: `[00:15]`, `[01:30]`)으로 타임스탬프를 적어주세요. 사용자가 이를 클릭하여 바로 해당 시점으로 이동할 수 있습니다.\n"
+        "3. 스크립트에 전혀 언급되지 않은 내용이라면 솔직하게 영상에 언급되지 않았음을 밝히세요.\n"
+    )
+
+    context_prompt = (
+        f"【영상 정보】\n"
+        f"- 제목: {video_title}\n"
+        f"- 게시자: {uploader}\n\n"
+        f"【영상 전체 스크립트】\n"
+        f"{transcript_text}\n\n"
+        f"---"
+    )
+
+    contents = [context_prompt]
+
+    # 이전 대화 히스토리 포함
+    if history:
+        for turn in history[-6:]: # 최근 3회 왕복
+            role = turn.get("role", "user")
+            content = turn.get("content", "")
+            if role == "user":
+                contents.append(f"사용자 질문: {content}")
+            else:
+                contents.append(f"AI 답변: {content}")
+
+    contents.append(f"사용자 질문: {question}\n\n답변:")
+
+    full_prompt = "\n\n".join(contents)
+
+    response = client.models.generate_content(
+        model=model_name,
+        contents=full_prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            temperature=0.3,
+        ),
+    )
+
+    return (response.text or "").strip()
+

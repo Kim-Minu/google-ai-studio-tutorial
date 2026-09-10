@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,8 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, HttpUrl
 
-from app.services.downloader import get_video_info, download_audio
-from app.services.transcriber import transcribe_audio_with_gemini
+from app.services.downloader import get_video_info, download_audio, extract_youtube_id
+from app.services.transcriber import transcribe_audio_with_gemini, ask_transcript_qa
 from app.services.history import (
     get_all_history,
     save_history_entry,
@@ -55,6 +55,16 @@ class TranscribeRequest(BaseModel):
     api_key: Optional[str] = None
     model_name: Optional[str] = "gemini-3.7-flash"
     language_hint: Optional[str] = None
+
+
+class QARequest(BaseModel):
+    question: str
+    transcript_text: str
+    video_title: Optional[str] = ""
+    uploader: Optional[str] = ""
+    history: Optional[List[Dict[str, str]]] = None
+    api_key: Optional[str] = None
+    model_name: Optional[str] = "gemini-3.7-flash"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -128,6 +138,19 @@ async def process_transcription(payload: TranscribeRequest):
     if not url:
         raise HTTPException(status_code=400, detail="유튜브 URL을 입력해주세요.")
 
+    # 0. Check History Cache First (동일 영상 재입력 시 즉시 반환)
+    video_id = extract_youtube_id(url)
+    if video_id:
+        cached_entry = get_history_by_id(video_id)
+        if cached_entry and "transcript" in cached_entry and "video" in cached_entry:
+            audio_filename = cached_entry["video"].get("audio_filename", "")
+            audio_path = DOWNLOADS_DIR / audio_filename if audio_filename else None
+            # 오디오 파일이 로컬에 보존되어 있는 경우 즉시 캐시 반환
+            if audio_path and audio_path.exists():
+                cached_entry["from_cache"] = True
+                save_history_entry(cached_entry) # 최근 열람 순으로 맨 앞 갱신
+                return cached_entry
+
     api_key = payload.api_key.strip() if payload.api_key else os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(
@@ -185,3 +208,41 @@ async def serve_audio(filename: str):
         media_type="audio/mpeg",
         filename=filename,
     )
+
+
+@app.post("/api/qa")
+async def video_transcript_qa(payload: QARequest):
+    """
+    영상 스크립트 기반 대화형 AI 질의응답
+    """
+    question = payload.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="질문 내용을 입력해주세요.")
+
+    if not payload.transcript_text:
+        raise HTTPException(status_code=400, detail="영상의 트랜스크립트 내용이 없습니다.")
+
+    api_key = payload.api_key.strip() if payload.api_key else os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Gemini API 키가 필요합니다. 환경변수 GEMINI_API_KEY를 확인해주세요.",
+        )
+
+    try:
+        answer = ask_transcript_qa(
+            question=question,
+            transcript_text=payload.transcript_text,
+            video_title=payload.video_title or "",
+            uploader=payload.uploader or "",
+            history=payload.history,
+            api_key=api_key,
+            model_name=payload.model_name or "gemini-3.7-flash",
+        )
+        return {
+            "success": True,
+            "answer": answer,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI 답변 생성 중 오류가 발생했습니다: {str(e)}")
+
